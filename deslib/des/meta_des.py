@@ -150,28 +150,44 @@ class METADES(BaseDES):
 
     """
 
-    def __init__(self, pool_classifiers=None, meta_classifier=None, k=7, Kp=5,
-                 Hc=1.0, selection_threshold=0.5, mode='selection',
-                 DFP=False, with_IH=False, safe_k=None, IH_rate=0.30,
-                 random_state=None, knn_classifier='knn', knne=False,
-                 knn_metric='minkowski', DSEL_perc=0.5, n_jobs=-1,
-                 voting='hard'):
-
-        super(METADES, self).__init__(pool_classifiers=pool_classifiers,
-                                      k=k,
-                                      DFP=DFP,
-                                      with_IH=with_IH,
-                                      safe_k=safe_k,
-                                      IH_rate=IH_rate,
-                                      mode=mode,
-                                      needs_proba=True,
-                                      random_state=random_state,
-                                      knn_classifier=knn_classifier,
-                                      knn_metric=knn_metric,
-                                      knne=knne,
-                                      DSEL_perc=DSEL_perc,
-                                      n_jobs=n_jobs,
-                                      voting=voting)
+    def __init__(
+        self,
+        pool_classifiers=None,
+        meta_classifier=None,
+        k=7,
+        Kp=5,
+        Hc=1.0,
+        selection_threshold=0.5,
+        mode="selection",
+        DFP=False,
+        with_IH=False,
+        safe_k=None,
+        IH_rate=0.30,
+        random_state=None,
+        knn_classifier="knn",
+        knne=False,
+        knn_metric="minkowski",
+        DSEL_perc=0.5,
+        n_jobs=-1,
+        voting="hard",
+    ):
+        super(METADES, self).__init__(
+            pool_classifiers=pool_classifiers,
+            k=k,
+            DFP=DFP,
+            with_IH=with_IH,
+            safe_k=safe_k,
+            IH_rate=IH_rate,
+            mode=mode,
+            needs_proba=True,
+            random_state=random_state,
+            knn_classifier=knn_classifier,
+            knn_metric=knn_metric,
+            knne=knne,
+            DSEL_perc=DSEL_perc,
+            n_jobs=n_jobs,
+            voting=voting,
+        )
 
         self.meta_classifier = meta_classifier
         self.Kp = Kp
@@ -202,8 +218,7 @@ class METADES(BaseDES):
         super(METADES, self).fit(X, y)
 
         if self.n_classes_ == 1:
-            raise ValueError(
-                "Error. META-DES  does not accept one class datasets.")
+            raise ValueError("Error. META-DES  does not accept one class datasets.")
 
         self._check_Kp_samples()
 
@@ -213,9 +228,9 @@ class METADES(BaseDES):
         self.dsel_scores_ = self._predict_proba_base(self.DSEL_data_)
 
         # Reshape DSEL_scores as a 2-D array for nearest neighbor calculations
-        dsel_output_profiles = self.dsel_scores_.reshape(self.n_samples_,
-                                                         self.n_classifiers_ *
-                                                         self.n_classes_)
+        dsel_output_profiles = self.dsel_scores_.reshape(
+            self.n_samples_, self.n_classifiers_ * self.n_classes_
+        )
 
         self._fit_OP(dsel_output_profiles, self.DSEL_target_)
 
@@ -239,7 +254,7 @@ class METADES(BaseDES):
         return self
 
     def _fit_OP(self, X_op, y_op):
-        """ Fit the set of output profiles.
+        """Fit the set of output profiles.
 
         Parameters
         ----------
@@ -254,7 +269,7 @@ class METADES(BaseDES):
         self.op_knn_ = self.knn_class_(self.Kp_)
         # guarantees that minkowski metric is used in this case. It is a
         # requirement for dealing with the decision space.
-        self.op_knn_.metric = 'minkowski'
+        self.op_knn_.metric = "minkowski"
         self.op_knn_.metric_params = None
 
         if self.n_classes_ == 2:
@@ -311,16 +326,17 @@ class METADES(BaseDES):
         f1_all_classifiers = f1_all_classifiers.swapaxes(1, 2)
         f1_all_classifiers = f1_all_classifiers.reshape(-1, self.k_)
 
-        f2_all_classifiers =\
-            self.dsel_scores_[idx_neighbors, :,
-                              self.DSEL_target_[idx_neighbors]]
+        f2_all_classifiers = self.dsel_scores_[
+            idx_neighbors, :, self.DSEL_target_[idx_neighbors]
+        ]
 
         f2_all_classifiers = f2_all_classifiers.swapaxes(1, 2)
 
         f2_all_classifiers = f2_all_classifiers.reshape(-1, self.k_)
 
-        f3_all_classifiers = np.mean(self.DSEL_processed_[idx_neighbors, :],
-                                     axis=1).reshape(-1, 1)
+        f3_all_classifiers = np.mean(
+            self.DSEL_processed_[idx_neighbors, :], axis=1
+        ).reshape(-1, 1)
 
         f4_all_classifiers = self.DSEL_processed_[idx_neighbors_op, :]
         f4_all_classifiers = f4_all_classifiers.swapaxes(1, 2)
@@ -328,8 +344,14 @@ class METADES(BaseDES):
 
         f5_all_classifiers = np.max(scores, axis=2).reshape(-1, 1)
         meta_feature_vectors = np.hstack(
-            (f1_all_classifiers, f2_all_classifiers, f3_all_classifiers,
-             f4_all_classifiers, f5_all_classifiers))
+            (
+                f1_all_classifiers,
+                f2_all_classifiers,
+                f3_all_classifiers,
+                f4_all_classifiers,
+                f5_all_classifiers,
+            )
+        )
 
         return meta_feature_vectors
 
@@ -350,16 +372,19 @@ class METADES(BaseDES):
         # first compute the agreement of each sample for
         # the sample selection mechanism
         agreement = self._sample_selection_agreement()
-        indices_selected = np.hstack((np.where(self.Hc > agreement)[0],
-                                      np.where(agreement > (1 - self.Hc))[0]))
+        indices_selected = np.hstack(
+            (np.where(self.Hc > agreement)[0], np.where(agreement > (1 - self.Hc))[0])
+        )
         indices_selected = np.unique(indices_selected)
         # Get the region of competence using the feature space and
         # the decision space. Use K + 1 to later remove itself
         # from the set.
         _, idx_neighbors = self.get_competence_region(
-            self.DSEL_data_[indices_selected, :], self.k_ + 1)
+            self.DSEL_data_[indices_selected, :], self.k_ + 1
+        )
         _, idx_neighbors_op = self._get_similar_out_profiles(
-            self.dsel_scores_[indices_selected], self.Kp_ + 1)
+            self.dsel_scores_[indices_selected], self.Kp_ + 1
+        )
         # Remove the first neighbor (itself)
         idx_neighbors = idx_neighbors[:, 1:]
         idx_neighbors_op = idx_neighbors_op[:, 1:]
@@ -370,10 +395,13 @@ class METADES(BaseDES):
 
         # Extract the meta-feature vectors for each base
         # classifier. vector and target must both be numpy arrays
-        meta_feature_vector = self.compute_meta_features(scores, idx_neighbors,
-                                                         idx_neighbors_op)
+        meta_feature_vector = self.compute_meta_features(
+            scores, idx_neighbors, idx_neighbors_op
+        )
         meta_feature_target = self.DSEL_processed_[indices_selected, :]
-        meta_feature_target = meta_feature_target.reshape(-1, )
+        meta_feature_target = meta_feature_target.reshape(
+            -1,
+        )
         meta_feature_target.astype(int)
 
         return meta_feature_vector, meta_feature_target
@@ -427,12 +455,13 @@ class METADES(BaseDES):
             # Get only the scores for one class since they are complementary
             query_op = probabilities[:, :, 0]
         else:
-            query_op = probabilities.reshape((probabilities.shape[0],
-                                              self.n_classifiers_ *
-                                              self.n_classes_))
+            query_op = probabilities.reshape(
+                (probabilities.shape[0], self.n_classifiers_ * self.n_classes_)
+            )
 
-        dists, idx = self.op_knn_.kneighbors(query_op, n_neighbors=kp,
-                                             return_distance=True)
+        dists, idx = self.op_knn_.kneighbors(
+            query_op, n_neighbors=kp, return_distance=True
+        )
         return dists, idx
 
     def select(self, competences):
@@ -455,15 +484,14 @@ class METADES(BaseDES):
         if competences.ndim < 2:
             competences = competences.reshape(1, -1)
 
-        selected_classifiers = (competences > self.selection_threshold)
+        selected_classifiers = competences > self.selection_threshold
         # For the rows that are all False (i.e., no base classifier was
         # selected, select all classifiers (all True)
         selected_classifiers[~np.any(selected_classifiers, axis=1), :] = True
 
         return selected_classifiers
 
-    def estimate_competence_from_proba(self, neighbors, probabilities,
-                                       distances=None):
+    def estimate_competence_from_proba(self, neighbors, probabilities, distances=None):
         """Estimate the competence of each base classifier :math:`c_i`
         the classification of the query sample. This method received an array
         with the pre-calculated probability estimates for each query.
@@ -492,18 +520,18 @@ class METADES(BaseDES):
             example.
         """
         _, idx_neighbors_op = self._get_similar_out_profiles(probabilities)
-        meta_feature_vectors = self.compute_meta_features(probabilities,
-                                                          neighbors,
-                                                          idx_neighbors_op)
+        meta_feature_vectors = self.compute_meta_features(
+            probabilities, neighbors, idx_neighbors_op
+        )
 
         # Digitize the data if a Multinomial NB is used as the meta-classifier
         if isinstance(self.meta_classifier_, MultinomialNB):
-            meta_feature_vectors = np.digitize(meta_feature_vectors,
-                                               np.linspace(0.1, 1, 10))
+            meta_feature_vectors = np.digitize(
+                meta_feature_vectors, np.linspace(0.1, 1, 10)
+            )
 
         # Get the probability for class 1 (Competent)
-        competences = self.meta_classifier_.predict_proba(
-            meta_feature_vectors)[:, 1]
+        competences = self.meta_classifier_.predict_proba(meta_feature_vectors)[:, 1]
 
         # Reshape the array from 1D [n_samples x n_classifiers]
         # to 2D [n_samples, n_classifiers]
@@ -521,37 +549,42 @@ class METADES(BaseDES):
         """
         if not isinstance(self.Hc, (float, int)):
             raise ValueError(
-                'Parameter Hc should be either a number.'
-                ' Currently Hc = {}'.format(type(self.Hc)))
+                "Parameter Hc should be either a number."
+                " Currently Hc = {}".format(type(self.Hc))
+            )
 
         if self.Hc < 0.5:
             raise ValueError(
-                'Parameter Hc should be higher than 0.5.'
-                ' Currently Hc = {}'.format(self.Hc))
+                "Parameter Hc should be higher than 0.5."
+                " Currently Hc = {}".format(self.Hc)
+            )
 
         if not isinstance(self.selection_threshold, float):
             raise ValueError(
-                'Parameter Hc should be either a float.'
-                ' Currently Hc = {}'.format(type(self.Hc)))
+                "Parameter Hc should be either a float."
+                " Currently Hc = {}".format(type(self.Hc))
+            )
 
         if self.selection_threshold < 0.5:
             raise ValueError(
-                'Parameter selection_threshold should be higher than 0.5. '
-                'Currently selection_threshold = {}'.format(
-                    self.selection_threshold))
+                "Parameter selection_threshold should be higher than 0.5. "
+                "Currently selection_threshold = {}".format(self.selection_threshold)
+            )
 
-        if (self.meta_classifier is not None and
-                not hasattr(self.meta_classifier, "predict_proba")):
+        if self.meta_classifier is not None and not hasattr(
+            self.meta_classifier, "predict_proba"
+        ):
 
-            raise ValueError(
-                "The meta-classifier should output probability estimates")
+            raise ValueError("The meta-classifier should output probability estimates")
 
         if self.Kp is not None:
             if not isinstance(self.Kp, int):
                 raise TypeError("parameter Kp should be an integer.")
             if self.Kp <= 1:
-                raise ValueError("parameter Kp must be higher than 1."
-                                 "input Kp is {} .".format(self.Kp))
+                raise ValueError(
+                    "parameter Kp must be higher than 1."
+                    "input Kp is {} .".format(self.Kp)
+                )
         else:
             raise ValueError("Parameter Kp is 'None'.")
 
@@ -562,7 +595,8 @@ class METADES(BaseDES):
             warnings.warn(
                 "kp is bigger than DSEL size. Using All DSEL"
                 " examples for competence estimation.",
-                category=RuntimeWarning)
+                category=RuntimeWarning,
+            )
             self.Kp_ = self.n_samples_ - 1
         else:
             self.Kp_ = self.Kp

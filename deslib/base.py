@@ -17,8 +17,12 @@ from sklearn.ensemble import BaseEnsemble, BaggingClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import LabelEncoder, normalize
-from sklearn.utils.validation import (check_X_y, check_is_fitted, check_array,
-                                      check_random_state)
+from sklearn.utils.validation import (
+    check_X_y,
+    check_is_fitted,
+    check_array,
+    check_random_state,
+)
 
 from deslib.util import KNNE
 from deslib.util import faiss_knn_wrapper
@@ -35,14 +39,27 @@ class BaseDS(BaseEstimator, ClassifierMixin):
     Warning: This class should not be used directly.
     Use derived classes instead.
     """
+
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def __init__(self, pool_classifiers=None, k=7, DFP=False, with_IH=False,
-                 safe_k=None, IH_rate=0.30, needs_proba=False,
-                 random_state=None, knn_classifier='knn',
-                 knn_metric='minkowski', DSEL_perc=0.5, knne=False, n_jobs=-1,
-                 voting=None):
+    def __init__(
+        self,
+        pool_classifiers=None,
+        k=7,
+        DFP=False,
+        with_IH=False,
+        safe_k=None,
+        IH_rate=0.30,
+        needs_proba=False,
+        random_state=None,
+        knn_classifier="knn",
+        knn_metric="minkowski",
+        DSEL_perc=0.5,
+        knne=False,
+        n_jobs=-1,
+        voting=None,
+    ):
 
         self.pool_classifiers = pool_classifiers
         self.k = k
@@ -60,10 +77,11 @@ class BaseDS(BaseEstimator, ClassifierMixin):
         self.voting = voting
 
         # Check optional dependency
-        if knn_classifier == 'faiss' and not faiss_knn_wrapper.is_available():
+        if knn_classifier == "faiss" and not faiss_knn_wrapper.is_available():
             raise ImportError(
                 'Using knn_classifier="faiss" requires that the FAISS library '
-                'be installed.Please check the Installation Guide.')
+                "be installed.Please check the Installation Guide."
+            )
 
     def fit(self, X, y):
         """Prepare the DS model by setting the KNN algorithm and
@@ -105,12 +123,12 @@ class BaseDS(BaseEstimator, ClassifierMixin):
         self.n_classifiers_ = len(self.pool_classifiers_)
         # allow base models with feature subspaces.
         if hasattr(self.pool_classifiers_, "estimators_features_"):
-            self.estimator_features_ = \
-                np.array(self.pool_classifiers_.estimators_features_)
+            self.estimator_features_ = np.array(
+                self.pool_classifiers_.estimators_features_
+            )
         else:
             indices = np.arange(X.shape[1])
-            self.estimator_features_ = np.tile(indices,
-                                               (self.n_classifiers_, 1))
+            self.estimator_features_ = np.tile(indices, (self.n_classifiers_, 1))
 
         # check if the input parameters are correct.
         self._setup_label_encoder(y)
@@ -150,15 +168,14 @@ class BaseDS(BaseEstimator, ClassifierMixin):
         if k is None:
             k = self.k_
 
-        dists, idx = self.roc_algorithm_.kneighbors(query,
-                                                    n_neighbors=k,
-                                                    return_distance=True)
+        dists, idx = self.roc_algorithm_.kneighbors(
+            query, n_neighbors=k, return_distance=True
+        )
 
         return np.atleast_2d(dists), np.atleast_2d(idx)
 
     @abstractmethod
-    def estimate_competence(self, competence_region, distances=None,
-                            predictions=None):
+    def estimate_competence(self, competence_region, distances=None, predictions=None):
         """estimate the competence of each base classifier :math:`c_{i}`
         the classification of the query sample :math:`\\mathbf{x}`.
         Returns an array containing the level of competence estimated
@@ -206,8 +223,14 @@ class BaseDS(BaseEstimator, ClassifierMixin):
         pass
 
     @abstractmethod
-    def classify_with_ds(self, predictions, probabilities=None,
-                         neighbors=None, distances=None, DFP_mask=None):
+    def classify_with_ds(
+        self,
+        predictions,
+        probabilities=None,
+        neighbors=None,
+        distances=None,
+        DFP_mask=None,
+    ):
         """Predicts the label of the corresponding query sample.
         Returns the predicted label.
 
@@ -237,8 +260,9 @@ class BaseDS(BaseEstimator, ClassifierMixin):
         pass
 
     @abstractmethod
-    def predict_proba_with_ds(self, predictions, probabilities,
-                              neighbors=None, distances=None, DFP_mask=None):
+    def predict_proba_with_ds(
+        self, predictions, probabilities, neighbors=None, distances=None, DFP_mask=None
+    ):
         """Predicts the posterior probabilities of the corresponding
         query sample. Returns the probability estimates of each class.
 
@@ -282,7 +306,7 @@ class BaseDS(BaseEstimator, ClassifierMixin):
         """
         X = self._check_predict(X)
         preds = np.empty(X.shape[0], dtype=np.intp)
-        need_proba = self.needs_proba or self.voting == 'soft'
+        need_proba = self.needs_proba or self.voting == "soft"
 
         base_preds, base_probas = self._preprocess_predictions(X, need_proba)
         # predict all agree
@@ -298,24 +322,25 @@ class BaseDS(BaseEstimator, ClassifierMixin):
             if ind_ds_classifier.size:
                 DFP_mask = self._get_DFP_mask(neighbors)
                 inds, sel_preds, sel_probas = self._prepare_indices_DS(
-                    base_preds, base_probas, ind_disagreement,
-                    ind_ds_classifier)
-                preds_ds = self.classify_with_ds(sel_preds, sel_probas,
-                                                 neighbors, distances,
-                                                 DFP_mask)
+                    base_preds, base_probas, ind_disagreement, ind_ds_classifier
+                )
+                preds_ds = self.classify_with_ds(
+                    sel_preds, sel_probas, neighbors, distances, DFP_mask
+                )
                 preds[inds] = preds_ds
 
         return self.classes_.take(preds)
 
     def _check_predict(self, X):
-        check_is_fitted(self,
-                        ["DSEL_processed_", "DSEL_data_", "DSEL_target_"])
+        check_is_fitted(self, ["DSEL_processed_", "DSEL_data_", "DSEL_target_"])
         X = check_array(X)
         if self.n_features_ != X.shape[1]:
-            raise ValueError("Number of features of the model must "
-                             "match the input. Model n_features is {0} and "
-                             "input n_features is {1}."
-                             "".format(self.n_features_, X.shape[1]))
+            raise ValueError(
+                "Number of features of the model must "
+                "match the input. Model n_features is {0} and "
+                "input n_features is {1}."
+                "".format(self.n_features_, X.shape[1])
+            )
         return X
 
     def predict_proba(self, X):
@@ -343,17 +368,17 @@ class BaseDS(BaseEstimator, ClassifierMixin):
         # predict with IH
         if ind_disagreement.size:
             distances, ind_ds_classifier, neighbors = self._IH_prediction(
-                    X, ind_disagreement, probas, is_proba=True)
+                X, ind_disagreement, probas, is_proba=True
+            )
             # Predict with DS - Check if there are still samples to be labeled.
             if ind_ds_classifier.size:
                 DFP_mask = self._get_DFP_mask(neighbors)
                 inds, sel_preds, sel_probas = self._prepare_indices_DS(
-                    base_preds, base_probas, ind_disagreement,
-                    ind_ds_classifier)
-                probas_ds = self.predict_proba_with_ds(sel_preds,
-                                                       sel_probas,
-                                                       neighbors, distances,
-                                                       DFP_mask)
+                    base_preds, base_probas, ind_disagreement, ind_ds_classifier
+                )
+                probas_ds = self.predict_proba_with_ds(
+                    sel_preds, sel_probas, neighbors, distances, DFP_mask
+                )
                 probas[inds] = probas_ds
         return probas
 
@@ -378,17 +403,21 @@ class BaseDS(BaseEstimator, ClassifierMixin):
         if self.with_IH:
             ind_hard, ind_easy = self._split_easy_samples(region_competence)
             distances, region_competence = self._predict_easy_samples(
-                X_DS, distances, ind_disagree, ind_easy,
-                region_competence, predicted_proba, is_proba)
+                X_DS,
+                distances,
+                ind_disagree,
+                ind_easy,
+                region_competence,
+                predicted_proba,
+                is_proba,
+            )
         else:
             # IH was not considered. So all samples go to predict with DS
             ind_hard = np.arange(ind_disagree.size)
         return distances, ind_hard, region_competence
 
     def _split_easy_samples(self, neighbors):
-        hardness = hardness_region_competence(neighbors,
-                                              self.DSEL_target_,
-                                              self.safe_k)
+        hardness = hardness_region_competence(neighbors, self.DSEL_target_, self.safe_k)
         # Get the index associated with the easy and hard samples.
         # easy samples are classified by the knn.
         easy_samples_mask = hardness < self.IH_rate
@@ -396,34 +425,42 @@ class BaseDS(BaseEstimator, ClassifierMixin):
         ind_ds_classifier = np.where(~easy_samples_mask)[0]
         return ind_ds_classifier, ind_knn_classifier
 
-    def _predict_easy_samples(self, X_DS, distances, ind_disagreement,
-                              ind_easy, neighbors, predictions, is_proba):
+    def _predict_easy_samples(
+        self,
+        X_DS,
+        distances,
+        ind_disagreement,
+        ind_easy,
+        neighbors,
+        predictions,
+        is_proba,
+    ):
         if ind_easy.size:
             # Accessing which samples in the original array.
             ind_knn_original_matrix = ind_disagreement[ind_easy]
 
             if is_proba:
-                predictions[ind_knn_original_matrix] = \
-                    self.roc_algorithm_.predict_proba(
-                        X_DS[ind_easy])
+                predictions[ind_knn_original_matrix] = (
+                    self.roc_algorithm_.predict_proba(X_DS[ind_easy])
+                )
             else:
-                y_neighbors = self.DSEL_target_[neighbors[ind_easy,
-                                                :self.safe_k]]
+                y_neighbors = self.DSEL_target_[neighbors[ind_easy, : self.safe_k]]
                 predictions_knn, _ = mode(y_neighbors, axis=1)
                 predictions[ind_knn_original_matrix] = predictions_knn.reshape(
-                    -1, )
+                    -1,
+                )
             neighbors = np.delete(neighbors, ind_easy, axis=0)
             distances = np.delete(distances, ind_easy, axis=0)
         return distances, neighbors
 
-    def _prepare_indices_DS(self, base_predictions, base_probabilities,
-                            ind_disagreement, ind_ds_classifier):
+    def _prepare_indices_DS(
+        self, base_predictions, base_probabilities, ind_disagreement, ind_ds_classifier
+    ):
         # Get the real indices_ of the samples that will be classified
         # using a DS algorithm.
         ind_ds_original_matrix = ind_disagreement[ind_ds_classifier]
         if base_probabilities is not None:
-            selected_probas = base_probabilities[
-                ind_ds_original_matrix]
+            selected_probas = base_probabilities[ind_ds_original_matrix]
         else:
             selected_probas = None
         selected_preds = base_predictions[ind_ds_original_matrix]
@@ -431,24 +468,27 @@ class BaseDS(BaseEstimator, ClassifierMixin):
 
     def _get_DFP_mask(self, neighbors):
         if self.DFP:
-            DFP_mask = frienemy_pruning_preprocessed(neighbors,
-                                                     self.DSEL_target_,
-                                                     self.DSEL_processed_)
+            DFP_mask = frienemy_pruning_preprocessed(
+                neighbors, self.DSEL_target_, self.DSEL_processed_
+            )
         else:
             DFP_mask = np.ones((neighbors.shape[0], self.n_classifiers_))
         return DFP_mask
 
     def _fit_pool_classifiers(self, X, y):
         if len(X) < 2:
-            raise ValueError('More than one sample is needed '
-                             'if the pool of classifiers is not informed.')
+            raise ValueError(
+                "More than one sample is needed "
+                "if the pool of classifiers is not informed."
+            )
         # Split the dataset into training (for the base classifier) and
         # DSEL (for DS)
         X_train, X_dsel, y_train, y_dsel = train_test_split(
-            X, y, test_size=self.DSEL_perc,
-            random_state=self.random_state_)
+            X, y, test_size=self.DSEL_perc, random_state=self.random_state_
+        )
         self.pool_classifiers_ = BaggingClassifier(
-            random_state=self.random_state_, n_jobs=self.n_jobs)
+            random_state=self.random_state_, n_jobs=self.n_jobs
+        )
         self.pool_classifiers_.fit(X_train, y_train)
         return X_dsel, y_dsel
 
@@ -456,8 +496,9 @@ class BaseDS(BaseEstimator, ClassifierMixin):
         # Check if base classifiers are not using LabelEncoder (the case for
         # scikit-learn's ensembles):
         if isinstance(self.pool_classifiers_, BaseEnsemble):
-            if np.array_equal(self.pool_classifiers_.classes_,
-                              self.pool_classifiers_[0].classes_):
+            if np.array_equal(
+                self.pool_classifiers_.classes_, self.pool_classifiers_[0].classes_
+            ):
                 self.base_already_encoded_ = False
             else:
                 self.base_already_encoded_ = True
@@ -465,23 +506,28 @@ class BaseDS(BaseEstimator, ClassifierMixin):
             self.base_already_encoded_ = False
 
     def _compute_highest_possible_IH(self):
-        highest_IH = (self.safe_k - math.ceil(
-            self.safe_k / self.n_classes_)) / self.safe_k
+        highest_IH = (
+            self.safe_k - math.ceil(self.safe_k / self.n_classes_)
+        ) / self.safe_k
         return highest_IH
 
     def _validate_ih(self):
         highest_IH = self._compute_highest_possible_IH()
         if self.IH_rate > highest_IH:
-            warnings.warn("IH_rate is bigger than the highest possible IH.",
-                          category=RuntimeWarning)
+            warnings.warn(
+                "IH_rate is bigger than the highest possible IH.",
+                category=RuntimeWarning,
+            )
 
     def _validate_k(self):
         # validate safe_k
         if self.k is None:
             self.k_ = self.n_samples_
         elif self.k > self.n_samples_:
-            msg = "k is bigger than DSEL size. Using All DSEL examples " \
-                  "for competence estimation."
+            msg = (
+                "k is bigger than DSEL size. Using All DSEL examples "
+                "for competence estimation."
+            )
             warnings.warn(msg, category=RuntimeWarning)
             self.k_ = self.n_samples_ - 1
         else:
@@ -527,39 +573,44 @@ class BaseDS(BaseEstimator, ClassifierMixin):
         algorithm = "auto"
         metric_params = None
 
-        if self.knn_metric == 'minkowski':
-            metric = 'minkowski'
-        elif self.knn_metric == 'mahalanobis':
-            metric = 'mahalanobis'
-            metric_params = {'VI': np.cov(X)}
+        if self.knn_metric == "minkowski":
+            metric = "minkowski"
+        elif self.knn_metric == "mahalanobis":
+            metric = "mahalanobis"
+            metric_params = {"VI": np.cov(X)}
             algorithm = "auto"
         else:
-            raise ValueError('"knn_metric" should be one of the following '
-                             '["minkowski", "mahalanobis"]')
+            raise ValueError(
+                '"knn_metric" should be one of the following '
+                '["minkowski", "mahalanobis"]'
+            )
 
-        if self.knn_classifier is None or self.knn_classifier in ['knn',
-                                                                  'sklearn']:
-            knn_class = functools.partial(KNeighborsClassifier,
-                                          n_jobs=self.n_jobs,
-                                          algorithm=algorithm,
-                                          metric=metric,
-                                          metric_params=metric_params)
-        elif self.knn_classifier == 'faiss':
+        if self.knn_classifier is None or self.knn_classifier in ["knn", "sklearn"]:
+            knn_class = functools.partial(
+                KNeighborsClassifier,
+                n_jobs=self.n_jobs,
+                algorithm=algorithm,
+                metric=metric,
+                metric_params=metric_params,
+            )
+        elif self.knn_classifier == "faiss":
             knn_class = functools.partial(
                 faiss_knn_wrapper.FaissKNNClassifier,
-                n_jobs=self.n_jobs, algorithm="brute")
+                n_jobs=self.n_jobs,
+                algorithm="brute",
+            )
         elif callable(self.knn_classifier):
             knn_class = self.knn_classifier
         else:
-            raise ValueError('"knn_classifier" should be one of the following '
-                             '["knn", "faiss", None] or an estimator class.')
+            raise ValueError(
+                '"knn_classifier" should be one of the following '
+                '["knn", "faiss", None] or an estimator class.'
+            )
 
         if self.knne:
             self.knn_class_ = functools.partial(
-                KNNE,
-                knn_classifier=knn_class,
-                n_jobs=self.n_jobs,
-                algorithm="auto")
+                KNNE, knn_classifier=knn_class, n_jobs=self.n_jobs, algorithm="auto"
+            )
         else:
             self.knn_class_ = knn_class
 
@@ -586,7 +637,7 @@ class BaseDS(BaseEstimator, ClassifierMixin):
         return processed_dsel, BKS_dsel
 
     def _predict_base(self, X):
-        """ Get the predictions of each base classifier in the pool for all
+        """Get the predictions of each base classifier in the pool for all
             samples in X.
 
         Parameters
@@ -600,16 +651,25 @@ class BaseDS(BaseEstimator, ClassifierMixin):
                       The predictions of each base classifier for all samples
                       in X.
         """
-        predictions = np.zeros((X.shape[0], self.n_classifiers_),
-                               dtype=np.intp)
+        predictions = np.zeros((X.shape[0], self.n_classifiers_), dtype=np.intp)
 
+        covered_indices = 0
         for index, clf in enumerate(self.pool_classifiers_):
-            labels = clf.predict(X[:, self.estimator_features_[index]])
+            ef = self.estimator_features_[index]
+
+            relevant_feature_indexes = ef[
+                np.ix_(np.arange(covered_indices, covered_indices + clf.n_features_in_))
+            ]
+
+            covered_indices += clf.n_features_in_
+
+            labels = clf.predict(X[:, relevant_feature_indexes])
             predictions[:, index] = self._encode_base_labels(labels)
+
         return predictions
 
     def _predict_proba_base(self, X):
-        """ Get the predictions (probabilities) of each base classifier in the
+        """Get the predictions (probabilities) of each base classifier in the
         pool for all samples in X.
 
         Parameters
@@ -623,12 +683,20 @@ class BaseDS(BaseEstimator, ClassifierMixin):
                         Probabilities estimates of each base classifier for all
                         test samples.
         """
-        probas = np.zeros(
-            (X.shape[0], self.n_classifiers_, self.n_classes_))
+        probas = np.zeros((X.shape[0], self.n_classifiers_, self.n_classes_))
 
+        covered_indices = 0
         for index, clf in enumerate(self.pool_classifiers_):
-            probas[:, index] = clf.predict_proba(
-                X[:, self.estimator_features_[index]])
+            ef = self.estimator_features_[index]
+
+            relevant_feature_indexes = ef[
+                np.ix_(np.arange(covered_indices, covered_indices + clf.n_features_in_))
+            ]
+
+            covered_indices += clf.n_features_in_
+
+            probas[:, index] = clf.predict_proba(X[:, relevant_feature_indexes])
+
         return probas
 
     @staticmethod
@@ -657,29 +725,33 @@ class BaseDS(BaseEstimator, ClassifierMixin):
             if not isinstance(self.k, int):
                 raise TypeError("parameter k should be an integer")
             if self.k <= 1:
-                raise ValueError("parameter k must be higher than 1."
-                                 "input k is {} ".format(self.k))
+                raise ValueError(
+                    "parameter k must be higher than 1." "input k is {} ".format(self.k)
+                )
 
         if self.safe_k is not None:
             if not isinstance(self.safe_k, int):
                 raise TypeError("parameter safe_k should be an integer")
             if self.safe_k <= 1:
-                raise ValueError("parameter safe_k must be higher than 1."
-                                 "input safe_k is {} ".format(self.safe_k))
+                raise ValueError(
+                    "parameter safe_k must be higher than 1."
+                    "input safe_k is {} ".format(self.safe_k)
+                )
 
         # safe_k should be equals or lower the neighborhood size k.
         if self.safe_k is not None and self.k is not None:
             if self.safe_k > self.k:
                 raise ValueError(
                     "parameter safe_k must be equal or less than parameter k."
-                    "input safe_k is {} and k is {}".format(self.k,
-                                                            self.safe_k))
+                    "input safe_k is {} and k is {}".format(self.k, self.safe_k)
+                )
         if not isinstance(self.IH_rate, float):
-            raise TypeError(
-                "parameter IH_rate should be a float between [0.0, 0.5]")
+            raise TypeError("parameter IH_rate should be a float between [0.0, 0.5]")
         if self.IH_rate < 0 or self.IH_rate > 0.5:
-            raise ValueError("Parameter IH_rate should be between [0.0, 0.5]."
-                             "IH_rate = {}".format(self.IH_rate))
+            raise ValueError(
+                "Parameter IH_rate should be between [0.0, 0.5]."
+                "IH_rate = {}".format(self.IH_rate)
+            )
 
         self._validate_pool_classifiers()
         # validate the value of k
@@ -689,7 +761,7 @@ class BaseDS(BaseEstimator, ClassifierMixin):
             self._validate_ih()
 
     def _validate_pool_classifiers(self):
-        """ Check the estimator and the n_estimator attribute, set the
+        """Check the estimator and the n_estimator attribute, set the
         `base_estimator_` attribute.
 
         Raises
@@ -698,11 +770,13 @@ class BaseDS(BaseEstimator, ClassifierMixin):
             If the pool of classifiers is empty.
         """
         if self.n_classifiers_ <= 1:
-            raise ValueError("n_classifiers must be greater than one, "
-                             "got {}.".format(self.n_classifiers_))
+            raise ValueError(
+                "n_classifiers must be greater than one, "
+                "got {}.".format(self.n_classifiers_)
+            )
 
     def _check_predict_proba(self):
-        """ Checks if each base classifier in the pool implements the
+        """Checks if each base classifier in the pool implements the
         predict_proba method.
 
         Raises
@@ -713,10 +787,11 @@ class BaseDS(BaseEstimator, ClassifierMixin):
         for clf in self.pool_classifiers_:
             if "predict_proba" not in dir(clf):
                 raise ValueError(
-                    "All base classifiers should output probability estimates")
+                    "All base classifiers should output probability estimates"
+                )
 
     def _check_base_classifier_fitted(self):
-        """ Checks if each base classifier in the pool is fitted.
+        """Checks if each base classifier in the pool is fitted.
 
         Raises
         -------

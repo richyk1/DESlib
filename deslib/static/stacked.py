@@ -6,7 +6,7 @@ from deslib.static.base import BaseStaticEnsemble
 
 
 class StackedClassifier(BaseStaticEnsemble):
-    """ A Stacking classifier.
+    """A Stacking classifier.
 
     Parameters
     ----------
@@ -46,13 +46,17 @@ class StackedClassifier(BaseStaticEnsemble):
     John Wiley & Sons, 2004.
     """
 
-    def __init__(self, pool_classifiers=None, meta_classifier=None,
-                 passthrough=False, random_state=None, n_jobs=-1):
+    def __init__(
+        self,
+        pool_classifiers=None,
+        meta_classifier=None,
+        passthrough=False,
+        random_state=None,
+        n_jobs=-1,
+    ):
 
         super(StackedClassifier, self).__init__(
-            pool_classifiers=pool_classifiers,
-            random_state=random_state,
-            n_jobs=n_jobs
+            pool_classifiers=pool_classifiers, random_state=random_state, n_jobs=n_jobs
         )
         self.meta_classifier = meta_classifier
         self.passthrough = passthrough
@@ -85,10 +89,11 @@ class StackedClassifier(BaseStaticEnsemble):
         # Prepare the meta-classifier
         if self.meta_classifier is None:
             self.meta_classifier_ = LogisticRegression(
-                solver='lbfgs',
-                multi_class='auto',
+                solver="lbfgs",
+                multi_class="auto",
                 max_iter=1000,
-                random_state=self.random_state_)
+                random_state=self.random_state_,
+            )
 
         else:
             self.meta_classifier_ = self.meta_classifier
@@ -114,10 +119,12 @@ class StackedClassifier(BaseStaticEnsemble):
         check_is_fitted(self, "meta_classifier_")
         X = check_array(X)
         if self.n_features_ != X.shape[1]:
-            raise ValueError("Number of features of the model must "
-                             "match the input. Model n_features is {0} and "
-                             "input n_features is {1}."
-                             "".format(self.n_features_, X.shape[1]))
+            raise ValueError(
+                "Number of features of the model must "
+                "match the input. Model n_features is {0} and "
+                "input n_features is {1}."
+                "".format(self.n_features_, X.shape[1])
+            )
 
         base_preds = self._predict_proba_base(X)
         X_meta = self._connect_input(X, base_preds)
@@ -141,15 +148,18 @@ class StackedClassifier(BaseStaticEnsemble):
         check_is_fitted(self, "meta_classifier_")
         X = check_array(X)
         if self.n_features_ != X.shape[1]:
-            raise ValueError("Number of features of the model must "
-                             "match the input. Model n_features is {0} and "
-                             "input n_features is {1}."
-                             "".format(self.n_features_, X.shape[1]))
+            raise ValueError(
+                "Number of features of the model must "
+                "match the input. Model n_features is {0} and "
+                "input n_features is {1}."
+                "".format(self.n_features_, X.shape[1])
+            )
 
         # Check if the meta-classifier can output probabilities
         if not hasattr(self.meta_classifier_, "predict_proba"):
-            raise ValueError("Meta-classifier does not implement the"
-                             " predict_proba method.")
+            raise ValueError(
+                "Meta-classifier does not implement the" " predict_proba method."
+            )
 
         base_preds = self._predict_proba_base(X)
         X_meta = self._connect_input(X, base_preds)
@@ -164,7 +174,7 @@ class StackedClassifier(BaseStaticEnsemble):
         return X_meta
 
     def _predict_proba_base(self, X):
-        """ Get the predictions (probabilities) of each base classifier in the
+        """Get the predictions (probabilities) of each base classifier in the
         pool for all samples in X.
 
         Parameters
@@ -181,15 +191,22 @@ class StackedClassifier(BaseStaticEnsemble):
         # Check if base classifiers implement the predict proba method.
         self._check_predict_proba()
 
-        probas = np.zeros(
-            (X.shape[0], self.n_classifiers_, self.n_classes_))
+        probas = np.zeros((X.shape[0], self.n_classifiers_, self.n_classes_))
 
+        # for index, clf in enumerate(self.pool_classifiers_):
+        #     probas[:, index] = clf.predict_proba(X[:, self.estimator_features_[index]])
+
+        covered_indices = 0
         for index, clf in enumerate(self.pool_classifiers_):
-            probas[:, index] = clf.predict_proba(
-                X[:, self.estimator_features_[index]])
+            ef = self.estimator_features_[index]
+            relevant_feature_indexes = ef[
+                np.ix_(np.arange(covered_indices, covered_indices + clf.n_features_in_))
+            ]
+            covered_indices += clf.n_features_in_
 
-        probas = probas.reshape(X.shape[0],
-                                self.n_classifiers_ * self.n_classes_)
+            probas[:, index] = clf.predict_proba(X[:, relevant_feature_indexes])
+
+        probas = probas.reshape(X.shape[0], self.n_classifiers_ * self.n_classes_)
 
         # remove first column as both features are collinear.
         if self.n_classes_ == 2:
@@ -198,7 +215,7 @@ class StackedClassifier(BaseStaticEnsemble):
         return probas
 
     def _check_predict_proba(self):
-        """ Checks if each base classifier in the pool implements the
+        """Checks if each base classifier in the pool implements the
         predict_proba method.
 
         Raises
@@ -209,4 +226,5 @@ class StackedClassifier(BaseStaticEnsemble):
         for clf in self.pool_classifiers_:
             if "predict_proba" not in dir(clf):
                 raise ValueError(
-                    "All base classifiers should output probability estimates")
+                    "All base classifiers should output probability estimates"
+                )

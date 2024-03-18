@@ -5,13 +5,14 @@
 # License: BSD 3 clause
 
 import numpy as np
+from sklearn.calibration import LabelEncoder
 from sklearn.utils.validation import check_X_y, check_array
 
 from deslib.static.base import BaseStaticEnsemble
 
 
 class Oracle(BaseStaticEnsemble):
-    """ Abstract method that always selects the base classifier that predicts
+    """Abstract method that always selects the base classifier that predicts
     the correct label if such classifier exists. This method is often used to
     measure the upper-limit performance that can be achieved by a dynamic
     classifier selection technique. It is used as a benchmark by several
@@ -47,10 +48,11 @@ class Oracle(BaseStaticEnsemble):
     Information Fusion, vol. 41, pp. 195 – 216, 2018.
 
     """
+
     def __init__(self, pool_classifiers=None, random_state=None, n_jobs=-1):
-        super(Oracle, self).__init__(pool_classifiers=pool_classifiers,
-                                     random_state=random_state,
-                                     n_jobs=n_jobs)
+        super(Oracle, self).__init__(
+            pool_classifiers=pool_classifiers, random_state=random_state, n_jobs=n_jobs
+        )
 
     def fit(self, X, y):
         """Fit the model according to the given training data.
@@ -95,17 +97,32 @@ class Oracle(BaseStaticEnsemble):
         predicted_labels : array of shape (n_samples)
                            Predicted class for each sample in X.
         """
-        X = check_array(X)
-        if self.n_features_ != X.shape[1]:
-            raise ValueError("Number of features of the model must "
-                             "match the input. Model n_features is {0} and "
-                             "input n_features is {1}."
-                             "".format(self.n_features_, X.shape[1]))
+        # Check if the Oracle was fitted, taken from fit()
+        self.enc_ = LabelEncoder()
+        y_ind = self.enc_.fit_transform(y)
+        self.classes_ = self.enc_.classes_
 
-        y = self.enc_.transform(y)
-        preds = [clf.predict(X[:, self.estimator_features_[idx]])
-                 for idx, clf in enumerate(self.pool_classifiers_)]
+        # X = check_array(X)
+        # if self.n_features_ != X.shape[1]:
+        #     raise ValueError(
+        #         "Number of features of the model must "
+        #         "match the input. Model n_features is {0} and "
+        #         "input n_features is {1}."
+        #         "".format(self.n_features_, X.shape[1])
+        #     )
+
+        # y = self.enc_.transform(y)
+        # preds = [
+        #     clf.predict(X[:, self.estimator_features_[idx]])
+        #     for idx, clf in enumerate(self.pool_classifiers_)
+        # ]
+
+        preds = [
+            (clf.predict(X[idx]).flatten() >= 0.5).astype(int)
+            for idx, clf in enumerate(self.pool_classifiers)
+        ]
         preds = np.asarray(preds).T
+
         hit_miss = np.asarray(preds) == y.reshape(-1, 1)
         idx_sel_classifier = hit_miss.argmax(axis=1)
         predicted_labels = preds[np.arange(preds.shape[0]), idx_sel_classifier]
@@ -137,14 +154,16 @@ class Oracle(BaseStaticEnsemble):
         X = check_array(X)
         y = self.enc_.transform(y)
 
-        probas = [clf.predict_proba(X[:, self.estimator_features_[idx]])
-                  for idx, clf in enumerate(self.pool_classifiers_)]
+        probas = [
+            clf.predict_proba(X[:, self.estimator_features_[idx]])
+            for idx, clf in enumerate(self.pool_classifiers_)
+        ]
         probas = np.array(probas).transpose((1, 0, 2))
         best_probas_ids = np.argmax(probas[np.arange(y.size), :, y], axis=1)
         return probas[np.arange(y.size), best_probas_ids, :]
 
     def score(self, X, y, sample_weights=None):
-        """ Return the mean accuracy on the given test data and labels.
+        """Return the mean accuracy on the given test data and labels.
 
         Parameters
         ----------
@@ -163,6 +182,6 @@ class Oracle(BaseStaticEnsemble):
                    Classification accuracy of the Oracle model.
         """
         from sklearn.metrics import accuracy_score
-        accuracy = accuracy_score(y, self.predict(X, y),
-                                  sample_weight=sample_weights)
+
+        accuracy = accuracy_score(y, self.predict(X, y), sample_weight=sample_weights)
         return accuracy
