@@ -662,8 +662,19 @@ class BaseDS(BaseEstimator, ClassifierMixin):
             ]
 
             covered_indices += clf.n_features_in_
+            selection = X[:, relevant_feature_indexes]
+            selection = selection.astype(np.int32)
 
-            labels = clf.predict(X[:, relevant_feature_indexes])
+            if "Pipeline" not in clf.__str__() and len(clf.X_shape_) == 3:
+                selection2 = selection.reshape(
+                    selection.shape[0], 1, selection.shape[1]
+                )
+                labels = clf.predict(selection2)
+                predictions[:, index] = self._encode_base_labels(labels)
+
+                return predictions
+
+            labels = clf.predict(selection)
             predictions[:, index] = self._encode_base_labels(labels)
 
         return predictions
@@ -694,8 +705,12 @@ class BaseDS(BaseEstimator, ClassifierMixin):
             ]
 
             covered_indices += clf.n_features_in_
+            selection = X[:, relevant_feature_indexes]
+            selection = selection.astype(np.int32)
+            if "Pipeline" not in clf.__str__() and len(clf.X_shape_) == 3:
+                selection = selection.reshape(selection.shape[0], 1, selection.shape[1])
 
-            probas[:, index] = clf.predict_proba(X[:, relevant_feature_indexes])
+            probas[:, index] = clf.predict_proba(selection)
 
         return probas
 

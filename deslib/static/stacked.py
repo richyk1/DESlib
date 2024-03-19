@@ -204,7 +204,12 @@ class StackedClassifier(BaseStaticEnsemble):
             ]
             covered_indices += clf.n_features_in_
 
-            probas[:, index] = clf.predict_proba(X[:, relevant_feature_indexes])
+            selection = X[:, relevant_feature_indexes]
+            selection = selection.astype(np.int32)
+            if "Pipeline" not in clf.__str__() and len(clf.X_shape_) == 3:
+                selection = selection.reshape(selection.shape[0], 1, selection.shape[1])
+
+            probas[:, index] = clf.predict_proba(selection)
 
         probas = probas.reshape(X.shape[0], self.n_classifiers_ * self.n_classes_)
 
