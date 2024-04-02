@@ -665,7 +665,11 @@ class BaseDS(BaseEstimator, ClassifierMixin):
             selection = X[:, relevant_feature_indexes]
             selection = selection.astype(np.int32)
 
-            if "Pipeline" not in clf.__str__() and len(clf.X_shape_) == 3:
+            if (
+                "Pipeline" not in clf.__str__()
+                and "XGBClassifier" not in clf.__str__()
+                and len(clf.X_shape_) == 3
+            ):
                 selection2 = selection.reshape(
                     selection.shape[0], 1, selection.shape[1]
                 )
@@ -707,7 +711,11 @@ class BaseDS(BaseEstimator, ClassifierMixin):
             covered_indices += clf.n_features_in_
             selection = X[:, relevant_feature_indexes]
             selection = selection.astype(np.int32)
-            if "Pipeline" not in clf.__str__() and len(clf.X_shape_) == 3:
+            if (
+                "Pipeline" not in clf.__str__()
+                and "XGBClassifier" not in clf.__str__()
+                and len(clf.X_shape_) == 3
+            ):
                 selection = selection.reshape(selection.shape[0], 1, selection.shape[1])
 
             probas[:, index] = clf.predict_proba(selection)
